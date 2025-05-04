@@ -1,6 +1,8 @@
 import streamlit as st
 import requests
 import json
+from dotenv import load_dotenv
+import os
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 def get_base_url() -> str:
@@ -9,10 +11,24 @@ def get_base_url() -> str:
 
 def get_api_key() -> str:
     """Get your Bearer API key."""
-    return st.text_input("API Key", type="password")
+    load_dotenv()
+    key = os.getenv("API_KEY")
+    if not key:
+        st.error("API Key not found in the environment file.")
+    return key
+
+def check_if_file_exists(token: str, base_url: str) -> bool:
+    """Check if there is an existing uploaded file in the system."""
+    url = f"{base_url.rstrip('/')}/api/v1/files/"
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = requests.get(url, headers=headers)
+    resp.raise_for_status()
+
+    files = resp.json()  # Assuming response is directly a list of files
+    return len(files) > 0, files  # Return both whether file exists and the list of files
 
 # Streaming chat using Open WebUI's chat-completions endpoint
-def chat_stream(model: str, prompt: str, base_url: str, token: str) -> str:
+def chat_stream(model: str, prompt: str, base_url: str, token: str, file_obj=None) -> str:
     """
     Streams a chat completion, updating the UI chunk-by-chunk.
     """
@@ -21,9 +37,23 @@ def chat_stream(model: str, prompt: str, base_url: str, token: str) -> str:
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
+    if file_obj:
+        print("File object is not None")
+        try:
+            file_text = file_obj.get("data", {}).get("content", "")
+            if not isinstance(file_text, str):
+                raise ValueError("File content is not a valid string.")
+        except (UnicodeDecodeError, ValueError) as e:
+            st.error(f"Error processing file: {e}")
+            return
+
+
+    full_prompt = f"""
+    <FILE CONTENT>\n{file_text}\n</FILE CONTENT>\nUser Query: {prompt}
+    """
     payload = {
         "model": model,
-        "messages": [{"role": "user", "content": prompt}],
+        "messages": [{"role": "user", "content": full_prompt}],
         "stream": True
     }
     response = requests.post(url, headers=headers, json=payload, stream=True)
@@ -41,26 +71,13 @@ def chat_stream(model: str, prompt: str, base_url: str, token: str) -> str:
         placeholder.text(full_text)
     return full_text
 
-# Non-streaming chat
 
-def chat_non_stream(model: str, prompt: str, base_url: str, token: str) -> str:
-    """
-    Sends a complete chat completion request and returns the full reply.
-    """
-    url = f"{base_url.rstrip('/')}/api/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}]
-    }
-    resp = requests.post(url, headers=headers, json=payload)
-    resp.raise_for_status()
-    return resp.json()["choices"][0]["message"]["content"]
-
-# Raw file upload (no RAG) to /api/v1/files/
+def delete_file(token: str, base_url: str, file_id: str) -> bool:
+    """Delete a file from the system."""
+    url = f"{base_url.rstrip('/')}/api/v1/files/{file_id}"
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = requests.delete(url, headers=headers)
+    return resp.status_code == 200  # Return True if deletion was successful
 
 def send_file(token: str, base_url: str, file_obj) -> dict:
     """
@@ -74,73 +91,63 @@ def send_file(token: str, base_url: str, file_obj) -> dict:
     resp.raise_for_status()
     return resp.json()
 
-# Chat with file: read file client-side and send its text in a chat message
-
-def chat_with_file(model: str, file_obj, query: str, base_url: str, token: str) -> str:
+def get_file(token: str, base_url: str, file_id: str) -> dict:
     """
-    Reads file content locally and sends it as part of the chat prompt.
+    Fetches a file from the server using its ID.
     """
-    # Read file bytes and decode to text
-    raw = file_obj.read()
-    try:
-        file_text = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        file_text = raw.decode("latin-1")
-    # Construct combined prompt
-    prompt = f"<FILE CONTENT>\n{file_text}\n</FILE CONTENT>\nUser Query: {query}"
-    # Use non-streaming chat for simplicity
-    return chat_non_stream(model, prompt, base_url, token)
+    url = f"{base_url.rstrip('/')}/api/v1/files/{file_id}"
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = requests.get(url, headers=headers)
+    resp.raise_for_status()
+    return resp.json()
 
 # ── Streamlit App ─────────────────────────────────────────────────────────────
 st.title("Open WebUI Streamlit Demo")
 base_url = get_base_url()
 token    = get_api_key()
-model    = st.text_input("Model", value="llama3.2:latest")
+model    = st.text_input("Model", value="hhao/openbmb-minicpm-llama3-v-2_5:latest")
 
-mode = st.sidebar.radio("Mode", [
-    "Streaming Chat",
-    "Non-Streaming Chat",
-    "Send File",
-    "Chat with File"
-])
 
-if mode == "Streaming Chat":
+
+        
+if "file_uploaded" not in st.session_state:
+    st.session_state["file_uploaded"] = False
+file_exists, files = check_if_file_exists(token, base_url)
+
+if file_exists:
     prompt = st.text_area("Prompt for streaming chat")
+    file = get_file(token, base_url, files[0].get("id"))  # Assuming the response contains an 'id' field for the file
     if st.button("Submit Streaming Chat"):
         if not token:
             st.error("API Key is required for streaming chat.")
         else:
-            chat_stream(model, prompt, base_url, token)
+            chat_stream(model, prompt, base_url, token, file)
 
-elif mode == "Non-Streaming Chat":
-    prompt = st.text_area("Prompt for non-streaming chat")
-    if st.button("Submit Chat"):
-        if not token:
-            st.error("API Key is required for chat.")
-        else:
-            reply = chat_non_stream(model, prompt, base_url, token)
-            st.write(reply)
 
-elif mode == "Send File":
-    uploaded = st.file_uploader("Select a file to send", type=["txt", "pdf", "md"] )
-    if st.button("Upload File"):
-        if not token:
-            st.error("API Key is required for file upload.")
-        elif not uploaded:
-            st.error("Please select a file first.")
-        else:
-            res = send_file(token, base_url, uploaded)
-            st.success("File uploaded successfully!")
-            st.json(res)
+# File upload logic
+if not st.session_state["file_uploaded"]:
+    if file_exists:
+        st.info("A file is already uploaded.")
+        st.write("Files:", files)  # Show the files (this should ideally be a list of file names or IDs)
+        file_id = files[0].get("id")  # Assuming the response contains an 'id' field for the file
+        if st.button("🧹 Remove Uploaded File"):
+            if file_id and delete_file(token, base_url, file_id):
+                st.success("File removed successfully!")
+                st.session_state["file_uploaded"] = False
+            else:
+                st.error("Failed to remove the file.")
 
-elif mode == "Chat with File":
-    uploaded = st.file_uploader("Select a file to include in chat", type=["txt", "md"] )
-    query    = st.text_input("Enter your query regarding the file")
-    if st.button("Submit Chat with File"):
-        if not token:
-            st.error("API Key is required for chat.")
-        elif not uploaded or not query:
-            st.error("Please provide both a file and query.")
-        else:
-            answer = chat_with_file(model, uploaded, query, base_url, token)
-            st.write(answer)
+if not st.session_state["file_uploaded"]:
+    if not file_exists:
+        uploaded = st.file_uploader("Select a file to send", type=["json", "pdf", "md"] )
+        if st.button("Upload File"):
+            if not token:
+                st.error("API Key is required for file upload.")
+            elif not uploaded:
+                st.error("Please select a file first.")
+            else:
+                res = send_file(token, base_url, uploaded)
+                st.success("File uploaded successfully!")
+                st.json(res)
+                st.rerun()
+

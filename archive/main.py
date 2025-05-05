@@ -71,7 +71,6 @@ def chat_stream(model: str, prompt: str, base_url: str, token: str, file_obj=Non
         placeholder.text(full_text)
     return full_text
 
-
 def delete_file(token: str, base_url: str, file_id: str) -> bool:
     """Delete a file from the system."""
     url = f"{base_url.rstrip('/')}/api/v1/files/{file_id}"
@@ -105,13 +104,11 @@ def get_file(token: str, base_url: str, file_id: str) -> dict:
 st.title("Open WebUI Streamlit Demo")
 base_url = get_base_url()
 token    = get_api_key()
-model    = st.text_input("Model", value="hhao/openbmb-minicpm-llama3-v-2_5:latest")
+model    = st.text_input("Model", value="llama3.2:latest")
 
-
-
-        
 if "file_uploaded" not in st.session_state:
     st.session_state["file_uploaded"] = False
+
 file_exists, files = check_if_file_exists(token, base_url)
 
 if file_exists:
@@ -122,7 +119,6 @@ if file_exists:
             st.error("API Key is required for streaming chat.")
         else:
             chat_stream(model, prompt, base_url, token, file)
-
 
 # File upload logic
 if not st.session_state["file_uploaded"]:
@@ -137,8 +133,7 @@ if not st.session_state["file_uploaded"]:
             else:
                 st.error("Failed to remove the file.")
 
-if not st.session_state["file_uploaded"]:
-    if not file_exists:
+    else:
         uploaded = st.file_uploader("Select a file to send", type=["json", "pdf", "md"] )
         if st.button("Upload File"):
             if not token:
@@ -150,4 +145,3 @@ if not st.session_state["file_uploaded"]:
                 st.success("File uploaded successfully!")
                 st.json(res)
                 st.rerun()
-

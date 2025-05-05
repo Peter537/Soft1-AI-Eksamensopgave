@@ -41,6 +41,7 @@ def main():
                 if success:
                     st.success("File removed successfully!")
                     st.session_state["file_uploaded"] = False
+                    st.rerun()
                 else:
                     st.error("Failed to remove the file.")
         else:

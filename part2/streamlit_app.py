@@ -1,4 +1,3 @@
-# streamlit_app.py
 import streamlit as st
 from helpers.api import get_base_url, get_api_key
 from helpers.file_utils import (
@@ -12,8 +11,8 @@ from components.chat import chat_stream
 def main():
     st.title("Open WebUI Streamlit Demo")
     base_url = get_base_url()
-    token    = get_api_key()
-    model    = st.text_input("Model", value="llama3.2:latest")
+    token = get_api_key()
+    model = st.text_input("Model", value="llama3.2:latest")
 
     # file upload state
     if "file_uploaded" not in st.session_state:

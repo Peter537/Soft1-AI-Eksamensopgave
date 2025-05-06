@@ -1,6 +1,4 @@
-# helpers/file_utils.py
 import requests
-import streamlit as st
 
 def check_if_file_exists(token: str, base_url: str):
     url = f"{base_url.rstrip('/')}/api/v1/files/"

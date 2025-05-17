@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import os
 
 def get_base_url() -> str:
-    return st.text_input("Base URL", value="http://localhost:3000")
+    return "http://localhost:3000"
 
 def get_api_key() -> str:
     load_dotenv()

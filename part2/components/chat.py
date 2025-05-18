@@ -2,24 +2,14 @@ import requests
 import json
 import streamlit as st
 
-def chat_stream(model: str, prompt: str, base_url: str, token: str, file_obj=None) -> str:
+def chat_stream(model: str, prompt: str, base_url: str, token: str) -> str:
     url = f"{base_url.rstrip('/')}/api/chat/completions"
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
 
-    file_text = ""
-    if file_obj:
-        try:
-            file_text = file_obj.get("data", {}).get("content", "")
-            if not isinstance(file_text, str):
-                raise ValueError("File content is not a valid string.")
-        except Exception as e:
-            st.error(f"Error processing file: {e}")
-            return ""
-
-    full_prompt = f"<FILE CONTENT>\n{file_text}\n</FILE CONTENT>\nUser Query: {prompt}"
+    full_prompt = f"User Query: {prompt}"
     payload = {"model": model, "messages": [{"role": "user", "content": full_prompt}], "stream": True}
     response = requests.post(url, headers=headers, json=payload, stream=True)
     response.raise_for_status()
@@ -32,7 +22,19 @@ def chat_stream(model: str, prompt: str, base_url: str, token: str, file_obj=Non
         chunk = line.removeprefix("data: ").strip()
         if chunk == "[DONE]":
             break
-        delta = json.loads(chunk)["choices"][0]["delta"].get("content", "")
-        full_text += delta
-        placeholder.text(full_text)
+        try:
+            data = json.loads(chunk)
+            # Defensive: check for choices, delta, and content
+            choices = data.get("choices", [])
+            if choices:
+                delta = choices[0].get("delta", {})
+                if isinstance(delta, dict):
+                    delta_content = delta.get("content", "")
+                    if delta_content:
+                        full_text += delta_content
+                        placeholder.text(full_text)
+        except Exception as e:
+            # Optionally log or display the error for debugging
+            st.error(f"Error processing response: {e}")
+            continue
     return full_text

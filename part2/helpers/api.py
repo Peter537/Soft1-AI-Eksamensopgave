@@ -11,3 +11,10 @@ def get_api_key() -> str:
     if not key:
         st.error("API Key not found in the environment file.")
     return key
+
+def get_model() -> str:
+    load_dotenv()
+    model = os.getenv("MODEL")
+    if not model:
+        st.error("Model not found in the environment file.")
+    return model

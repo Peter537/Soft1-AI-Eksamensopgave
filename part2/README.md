@@ -35,4 +35,6 @@ Groups: None
     In this part we decided to use OpenWebUI for both support prompting the AI and assigning our cleaned dataset to it.
     We do this by entering our support prompts (The 4 T's) [[[THIS NEEDS TO BE DONE]]] after which we attach the knowledge-base to the AI under the "Knowledge" section. Here we select the prior named Knowledge "AI-P2-Knowledge"
 
+    then remember to click "Save & update"
+
 Now we can use the model with knowledge tied to it. You simply query to that same model using the completions-api and that finishes this setup.

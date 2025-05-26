@@ -10,7 +10,7 @@ This dataset contains 15 fields per vehicle listing, which is these following fi
 - Prod. year: an integer year of manufacture, suitable for age‐based analyses.
 - Category: the body style class (e.g., sedan, SUV, hatchback, coupe), useful for market‐segment grouping.
 - Leather interior: a binary flag (yes/no) indicating whether the cabin features leather upholstery.
--Fuel type: categorical (e.g., gasoline, diesel, electric, hybrid), important for emissions and performance modeling.
+- Fuel type: categorical (e.g., gasoline, diesel, electric, hybrid), important for emissions and performance modeling.
 - Engine volume: a numeric value (liters), reflecting displacement and roughly correlating with power and efficiency.
 - Mileage: total kilometers driven, a numeric variable crucial to depreciation and maintenance‐cost estimations.
 - Cylinders: an integer count of engine cylinders, tied to performance characteristics.

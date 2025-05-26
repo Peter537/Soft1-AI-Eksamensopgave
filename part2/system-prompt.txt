@@ -17,7 +17,7 @@ This dataset contains 15 fields per vehicle listing, which is these following fi
 - Gear box type: categorical (manual, automatic, CVT, etc.), affecting driving experience and resale value.
 - Drive wheels: drivetrain configuration (FWD, RWD, AWD), relevant for handling and market preference.
 - Doors: integer number of doors (2-door, 4-door, etc.), impacting style and practicality.
-- Wheel: steering‐wheel position (“left” vs. “right”), reflecting regional market orientation.
+- Wheel: steering‐wheel position ("left" vs. "right"), reflecting regional market orientation.
 - Color: exterior paint color as a categorical string, useful for aesthetic‐preference analyses.
 - Airbags: numeric count of installed airbags, a proxy for safety equipment level.
 

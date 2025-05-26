@@ -2,11 +2,18 @@ import streamlit as st
 from helpers.api import get_base_url, get_api_key, get_model
 from components.chat import chat_stream
 
+def render_thinking_dropdown(thinking_text: str) -> str:
+    return f"""
+<details open>
+  <summary><strong>🤖 AI is thinking...</strong></summary>
+  <pre>{thinking_text}</pre>
+</details>
+"""
+
 def main():
     st.set_page_config(page_title="Open WebUI Streamlit Demo")
     st.title("Open WebUI Streamlit Demo")
 
-    # Session State
     if "ui_history" not in st.session_state:
         st.session_state.ui_history = []
 
@@ -19,7 +26,7 @@ def main():
     # —— Admin Tab ——
     with tab2:
         st.subheader("Data Indexing Admin")
-        st.info("📁 File and knowledge uploads are now handled directly within **OpenWebUI**.\n\n"
+        st.info("\U0001F4C1 File and knowledge uploads are now handled directly within **OpenWebUI**.\n\n"
                 "No additional setup is required here.")
 
     # —— Chatbot Tab ——
@@ -27,13 +34,28 @@ def main():
         st.subheader("AI Shopping Assistant")
 
         chat_container = st.container()
+
         for msg in st.session_state.ui_history:
             role = msg.get("role")
             content = msg.get("content")
+
             if role == "user":
                 st.markdown(f"**You:** {content}")
             else:
-                st.markdown(f"**Assistant:** {content}")
+                # If there's a <Think> block, extract it
+                if "<Think>" in content and "</Think>" in content:
+                    think_text = content.split("<Think>")[1].split("</Think>")[0]
+                    visible_response = content.replace(f"<Think>{think_text}</Think>", "").strip()
+
+                    if visible_response:
+                        # Final response: just show it normally
+                        st.markdown(f"**Assistant:** {visible_response}")
+                    else:
+                        # Still thinking: show dropdown
+                        st.markdown(render_thinking_dropdown(think_text), unsafe_allow_html=True)
+                else:
+                    # No <Think>: normal assistant response
+                    st.markdown(f"**Assistant:** {content}")
 
         prompt = st.text_area("Your message", height=100)
 
@@ -42,16 +64,17 @@ def main():
 
             assistant_placeholder = chat_container.empty()
 
+            # Stream full conversation history to the LLM
             response_content = chat_stream(
                 model=model,
-                prompt=prompt,
+                messages=st.session_state.ui_history,
                 base_url=base_url,
                 token=token
             )
 
-            assistant_placeholder.markdown(f"**Assistant:** {response_content}")
+            # Save assistant's full response (may contain <Think>)
             st.session_state.ui_history.append({"role": "assistant", "content": response_content})
-            prompt = ""  # Clear the input field after submission
+
             st.rerun()
 
 if __name__ == "__main__":
